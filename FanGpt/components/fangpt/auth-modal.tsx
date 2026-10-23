@@ -1,0 +1,23 @@
+'use client';
+import { useState } from 'react';
+import { LoaderCircle, Mail, ShieldCheck, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
+import { useApp } from './providers';
+import { GoogleMark, Logo, Modal } from './ui';
+
+export function AuthModal({onClose}:{onClose:()=>void}){
+  const {client,config}=useApp();const [view,setView]=useState<'login'|'signup'|'reset'>('login');const [email,setEmail]=useState('');const [password,setPassword]=useState('');const [name,setName]=useState('');const [busy,setBusy]=useState(false);const [notice,setNotice]=useState('');
+  const configured=!!client&&!!config?.authConfigured;
+  async function submit(e:React.FormEvent){e.preventDefault();if(!client)return;setBusy(true);setNotice('');try{
+    if(view==='login'){const {error}=await client.auth.signInWithPassword({email,password});if(error)throw error;toast.success('Selamat datang kembali!');onClose();}
+    if(view==='signup'){const {data,error}=await client.auth.signUp({email,password,options:{data:{full_name:name.trim()},emailRedirectTo:location.origin+'/auth/finish'}});if(error)throw error;if(data.session){onClose();toast.success('Akun berhasil dibuat.');}else setNotice('Periksa kotak masuk emailmu untuk mengonfirmasi akun.');}
+    if(view==='reset'){const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/auth/finish?next=/account/reset'});if(error)throw error;setNotice('Jika email terdaftar, tautan pengaturan ulang akan dikirim.');}
+  }catch(e){const msg=(e as Error).message;setNotice(/invalid login/i.test(msg)?'Email atau kata sandi tidak sesuai.':/confirm/i.test(msg)?'Konfirmasi alamat emailmu terlebih dahulu.':/rate|too many/i.test(msg)?'Terlalu banyak percobaan. Tunggu sebentar.':'Permintaan belum berhasil. Periksa data akun dan coba kembali.');}finally{setBusy(false);}}
+  async function google(){if(!client)return;setBusy(true);const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+'/auth/finish',queryParams:{prompt:'select_account'}}});if(error){setBusy(false);setNotice('Login Google belum tersedia. Pengelola perlu memeriksa konfigurasinya.');}}
+  return <Modal title="Akun FanGpt" onClose={onClose}><div className="auth-brand"><Logo/></div><span className="eyebrow">RUANG UNTUK IDE BESARMU</span><h2>{view==='signup'?'Buat ruangmu sendiri.':view==='reset'?'Mulai dengan sandi baru.':'Senang bertemu lagi.'}</h2><p className="muted">{view==='reset'?'Kami akan mengirim tautan pemulihan ke emailmu.':'Simpan percakapan dan lanjutkan ide di perangkat mana pun.'}</p>
+    {!configured&&<div className="notice warm">Login akun belum diaktifkan. Kamu tetap bisa mencoba percakapan dengan riwayat di perangkat ini.</div>}
+    {view!=='reset'&&<><button className="google-button" onClick={google} disabled={!configured||busy}><GoogleMark/>Lanjutkan dengan Google</button><div className="divider"><span>atau gunakan email</span></div></>}
+    <form onSubmit={submit} className="auth-form">{view==='signup'&&<label>Nama<input value={name} onChange={e=>setName(e.target.value)} placeholder="Nama panggilanmu" autoComplete="name" required maxLength={100} disabled={!configured}/></label>}<label>Email<input value={email} type="email" onChange={e=>setEmail(e.target.value)} autoComplete="email" placeholder="nama@email.com" required disabled={!configured}/></label>{view!=='reset'&&<label>Kata sandi<input value={password} onChange={e=>setPassword(e.target.value)} type="password" autoComplete={view==='signup'?'new-password':'current-password'} minLength={8} placeholder="Minimal 8 karakter" required disabled={!configured}/></label>}{view==='login'&&<button type="button" className="text-button forgot" onClick={()=>{setView('reset');setNotice('');}}>Lupa kata sandi?</button>}{notice&&<div className="notice" role="status">{notice}</div>}<button className="primary-button" disabled={busy||!configured}>{busy?<LoaderCircle className="spin" size={18}/>:<Mail size={17}/>} {view==='signup'?'Buat akun':view==='reset'?'Kirim tautan pemulihan':'Masuk dengan email'}</button></form>
+    <p className="auth-switch">{view==='reset'?<button className="text-button" onClick={()=>{setView('login');setNotice('');}}><ArrowLeft size={14}/> Kembali ke masuk</button>:<>{view==='login'?'Belum punya akun?':'Sudah punya akun?'} <button className="text-button" onClick={()=>{setView(view==='login'?'signup':'login');setNotice('');}}>{view==='login'?'Daftar sekarang':'Masuk'}</button></>}</p><p className="auth-foot"><ShieldCheck size={14}/> Percakapan akun hanya dapat diakses olehmu.</p>
+  </Modal>;
+}

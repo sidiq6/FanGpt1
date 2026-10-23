@@ -1,0 +1,6 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import { useApp } from '@/components/fangpt/providers';
+import { Logo } from '@/components/fangpt/ui';
+import { safeNext } from '@/lib/validation';
+export default function Finish(){const {client,config}=useApp();const [error,setError]=useState('');const exchange=useRef<ReturnType<NonNullable<typeof client>['auth']['exchangeCodeForSession']>|null>(null);useEffect(()=>{if(!config)return;if(!client){setError('Login akun belum diaktifkan.');return;}const params=new URLSearchParams(location.search);const code=params.get('code');if(!code){setError('Tautan login tidak lengkap atau sudah digunakan.');return;}let active=true;exchange.current??=client.auth.exchangeCodeForSession(code);exchange.current.then(({error})=>{if(!active)return;if(error)setError('Tautan login berakhir. Silakan masuk kembali.');else location.replace(safeNext(params.get('next')));});return()=>{active=false;};},[client,config]);return <main className="auth-page"><Logo/><h1>{error?'Login belum selesai':'Menyiapkan ruangmu…'}</h1><p className="muted" role="status">{error||'Tunggu sebentar, kamu akan diarahkan ke FanGpt.'}</p>{error&&<a className="primary-button" href="/">Kembali ke FanGpt</a>}</main>;}
